@@ -138,9 +138,7 @@ def configure_cursor(target: Path, dry_run: bool) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Install the Many-Model Forecasting skill into a target project."
-    )
+    parser = argparse.ArgumentParser(description="Install the Many-Model Forecasting skill into a target project.")
     parser.add_argument(
         "--target",
         type=Path,
