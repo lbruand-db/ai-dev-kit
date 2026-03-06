@@ -1,3 +1,5 @@
+[![CI](https://github.com/lbruand-db/mmf-dev-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/lbruand-db/mmf-dev-kit/actions/workflows/ci.yml)
+
 # Many-Model Forecasting (MMF) Dev Kit
 
 A focused development kit for the **Many-Model Forecasting** skill, enabling AI coding assistants to build time series forecasting pipelines on Databricks.
