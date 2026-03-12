@@ -88,7 +88,7 @@ MIN_SDK_VERSION="0.85.0"
 G='\033[0;32m' Y='\033[1;33m' R='\033[0;31m' BL='\033[0;34m' B='\033[1m' D='\033[2m' N='\033[0m'
 
 # Databricks skills (bundled in repo)
-SKILLS="databricks-agent-bricks databricks-aibi-dashboards databricks-app-python databricks-asset-bundles databricks-config databricks-dbsql databricks-docs databricks-genie databricks-iceberg databricks-jobs databricks-lakebase-autoscale databricks-lakebase-provisioned databricks-metric-views databricks-mlflow-evaluation databricks-model-serving databricks-parsing databricks-python-sdk databricks-spark-declarative-pipelines databricks-spark-structured-streaming databricks-synthetic-data-gen databricks-unity-catalog databricks-unstructured-pdf-generation databricks-vector-search databricks-zerobus-ingest spark-python-data-source"
+SKILLS="databricks-agent-bricks databricks-aibi-dashboards databricks-app-python databricks-asset-bundles databricks-config databricks-dbsql databricks-docs databricks-genie databricks-iceberg databricks-jobs databricks-lakebase-autoscale databricks-lakebase-provisioned databricks-lakebridge-reconcile databricks-metric-views databricks-mlflow-evaluation databricks-model-serving databricks-parsing databricks-python-sdk databricks-spark-declarative-pipelines databricks-spark-structured-streaming databricks-synthetic-data-gen databricks-unity-catalog databricks-unstructured-pdf-generation databricks-vector-search databricks-zerobus-ingest spark-python-data-source"
 
 # MLflow skills (fetched from mlflow/skills repo)
 MLFLOW_SKILLS="agent-evaluation analyze-mlflow-chat-session analyze-mlflow-trace instrumenting-with-mlflow-tracing mlflow-onboarding querying-mlflow-metrics retrieving-mlflow-traces searching-mlflow-docs"
@@ -103,7 +103,7 @@ APX_RAW_URL="https://raw.githubusercontent.com/databricks-solutions/apx/main/ski
 CORE_SKILLS="databricks-config databricks-docs databricks-python-sdk databricks-unity-catalog"
 
 # Profile definitions (non-core skills only — core skills are always added)
-PROFILE_DATA_ENGINEER="databricks-spark-declarative-pipelines databricks-spark-structured-streaming databricks-jobs databricks-asset-bundles databricks-dbsql databricks-iceberg databricks-zerobus-ingest spark-python-data-source databricks-metric-views databricks-synthetic-data-gen"
+PROFILE_DATA_ENGINEER="databricks-spark-declarative-pipelines databricks-spark-structured-streaming databricks-jobs databricks-asset-bundles databricks-dbsql databricks-iceberg databricks-lakebridge-reconcile databricks-zerobus-ingest spark-python-data-source databricks-metric-views databricks-synthetic-data-gen"
 PROFILE_ANALYST="databricks-aibi-dashboards databricks-dbsql databricks-genie databricks-metric-views"
 PROFILE_AIML_ENGINEER="databricks-agent-bricks databricks-vector-search databricks-model-serving databricks-genie databricks-parsing databricks-unstructured-pdf-generation databricks-mlflow-evaluation databricks-synthetic-data-gen databricks-jobs"
 PROFILE_AIML_MLFLOW="agent-evaluation analyze-mlflow-chat-session analyze-mlflow-trace instrumenting-with-mlflow-tracing mlflow-onboarding querying-mlflow-metrics retrieving-mlflow-traces searching-mlflow-docs"
@@ -917,6 +917,7 @@ prompt_custom_skills() {
         "Synthetic Data|databricks-synthetic-data-gen|$(_is_preselected databricks-synthetic-data-gen)|Generate test data" \
         "Lakebase Autoscale|databricks-lakebase-autoscale|$(_is_preselected databricks-lakebase-autoscale)|Managed PostgreSQL" \
         "Lakebase Provisioned|databricks-lakebase-provisioned|$(_is_preselected databricks-lakebase-provisioned)|Provisioned PostgreSQL" \
+        "Lakebridge Reconcile|databricks-lakebridge-reconcile|$(_is_preselected databricks-lakebridge-reconcile)|Post-migration validation" \
         "App Python|databricks-app-python|$(_is_preselected databricks-app-python)|Dash, Streamlit, Flask" \
         "App APX|databricks-app-apx|$(_is_preselected databricks-app-apx)|FastAPI + React" \
         "MLflow Onboarding|mlflow-onboarding|$(_is_preselected mlflow-onboarding)|Getting started" \

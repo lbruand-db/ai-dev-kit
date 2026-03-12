@@ -1,0 +1,631 @@
+metadata:
+  skill_name: databricks-lakebridge-reconcile
+  version: 0.1.0
+  created_at: '2026-03-12T12:00:00.000000'
+
+test_cases:
+- id: recon_basic_setup_001
+  inputs:
+    prompt: "How do I set up Lakebridge reconciliation to validate a Snowflake migration to Unity Catalog?"
+  outputs:
+    response: |
+      ```python
+      %pip install databricks-labs-lakebridge
+      dbutils.library.restartPython()
+
+      from databricks.sdk import WorkspaceClient
+      from databricks.labs.lakebridge.config import (
+          ReconcileConfig, DatabaseConfig, ReconcileMetadataConfig, TableRecon
+      )
+      from databricks.labs.lakebridge.reconcile.recon_config import Table
+      from databricks.labs.lakebridge.reconcile.trigger_recon_service import TriggerReconService
+
+      ws = WorkspaceClient()
+
+      table_recon = TableRecon(tables=[
+          Table(source_name="orders", target_name="orders", join_columns=["order_id"])
+      ])
+
+      reconcile_config = ReconcileConfig(
+          data_source="snowflake",
+          report_type="all",
+          secret_scope="lakebridge_snowflake",
+          database_config=DatabaseConfig(
+              source_catalog="PROD_DB",
+              source_schema="PUBLIC",
+              target_catalog="main",
+              target_schema="migrated"
+          ),
+          metadata_config=ReconcileMetadataConfig()
+      )
+
+      result = TriggerReconService.trigger_recon(
+          ws=ws, spark=spark, table_recon=table_recon, reconcile_config=reconcile_config
+      )
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "Lakebridge is installed via pip install databricks-labs-lakebridge"
+    - "ReconcileConfig defines global settings including data_source, report_type, and secret_scope"
+    - "TableRecon wraps a list of Table objects defining which tables to reconcile"
+    - "TriggerReconService.trigger_recon() executes the reconciliation"
+    - "Secret scope lakebridge_snowflake stores Snowflake credentials"
+    expected_patterns:
+    - pattern: "databricks-labs-lakebridge"
+      min_count: 1
+      description: "Installs the Lakebridge package"
+    - pattern: "ReconcileConfig"
+      min_count: 1
+      description: "Uses ReconcileConfig for global settings"
+    - pattern: "TableRecon"
+      min_count: 1
+      description: "Uses TableRecon for table definitions"
+    - pattern: "TriggerReconService"
+      min_count: 1
+      description: "Uses TriggerReconService to run reconciliation"
+    - pattern: "data_source.*snowflake"
+      min_count: 1
+      description: "Configures Snowflake as the data source"
+    guidelines:
+    - "Must import from databricks.labs.lakebridge.config, not from recon_config"
+    - "Must include ReconcileConfig with data_source, report_type, secret_scope, database_config"
+    - "Must show TriggerReconService.trigger_recon() call"
+  metadata:
+    category: happy_path
+    difficulty: easy
+    source: auto_generated
+
+- id: recon_yaml_config_002
+  inputs:
+    prompt: "Generate the YAML configuration files for reconciling Oracle tables to Databricks."
+  outputs:
+    response: |
+      **reconcile.yml:**
+      ```yaml
+      version: 1
+      data_source: oracle
+      report_type: all
+      secret_scope: lakebridge_oracle
+      database_config:
+        source_schema: HR
+        target_catalog: main
+        target_schema: hr_migrated
+      metadata_config:
+        catalog: remorph
+        schema: reconcile
+        volume: reconcile_volume
+      ```
+
+      **recon_config.yml:**
+      ```yaml
+      version: 2
+      tables:
+        - source_name: employees
+          target_name: employees
+          join_columns: [employee_id]
+        - source_name: departments
+          target_name: departments
+          join_columns: [department_id]
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "Lakebridge uses two YAML config files: reconcile.yml and recon_config.yml"
+    - "reconcile.yml version is 1 and recon_config.yml version is 2"
+    - "reconcile.yml defines data_source, report_type, secret_scope, and database_config"
+    - "recon_config.yml contains a tables list with source_name, target_name, and join_columns"
+    - "Default secret scope for Oracle is lakebridge_oracle"
+    expected_patterns:
+    - pattern: "reconcile\\.yml"
+      min_count: 1
+      description: "References the reconcile.yml config file"
+    - pattern: "recon_config\\.yml"
+      min_count: 1
+      description: "References the recon_config.yml config file"
+    - pattern: "version: 1"
+      min_count: 1
+      description: "Uses correct version for reconcile.yml"
+    - pattern: "version: 2"
+      min_count: 1
+      description: "Uses correct version for recon_config.yml"
+    - pattern: "data_source: oracle"
+      min_count: 1
+      description: "Sets Oracle as the data source"
+    guidelines:
+    - "Must generate both reconcile.yml and recon_config.yml"
+    - "reconcile.yml must use version 1, recon_config.yml must use version 2"
+    - "Must include metadata_config with catalog, schema, and volume"
+  metadata:
+    category: happy_path
+    difficulty: easy
+    source: auto_generated
+
+- id: recon_column_mapping_003
+  inputs:
+    prompt: "My source table has columns named p_id and p_name but the target uses product_id and product_name. How do I configure column mapping for Lakebridge reconciliation?"
+  outputs:
+    response: |
+      ```python
+      from databricks.labs.lakebridge.reconcile.recon_config import Table, ColumnMapping
+
+      table = Table(
+          source_name="products",
+          target_name="products",
+          join_columns=["p_id"],
+          column_mapping=[
+              ColumnMapping(source_name="p_id", target_name="product_id"),
+              ColumnMapping(source_name="p_name", target_name="product_name"),
+          ],
+      )
+      ```
+
+      Or in YAML:
+      ```yaml
+      tables:
+        - source_name: products
+          target_name: products
+          join_columns: [p_id]
+          column_mapping:
+            - source_name: p_id
+              target_name: product_id
+            - source_name: p_name
+              target_name: product_name
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "ColumnMapping maps source_name to target_name for columns with different names"
+    - "join_columns should use the source column name (p_id, not product_id)"
+    - "All column names are auto-lowercased by Lakebridge"
+    expected_patterns:
+    - pattern: "ColumnMapping"
+      min_count: 1
+      description: "Uses ColumnMapping for column name mapping"
+    - pattern: "source_name.*p_id"
+      min_count: 1
+      description: "Maps p_id as source column"
+    - pattern: "target_name.*product_id"
+      min_count: 1
+      description: "Maps product_id as target column"
+    - pattern: "column_mapping"
+      min_count: 1
+      description: "Uses column_mapping configuration"
+    guidelines:
+    - "Must use ColumnMapping with source_name and target_name fields"
+    - "join_columns must reference source column names"
+    - "Should mention that all column names are auto-lowercased"
+  metadata:
+    category: happy_path
+    difficulty: easy
+    source: auto_generated
+
+- id: recon_thresholds_004
+  inputs:
+    prompt: "How do I set up numeric thresholds for Lakebridge reconciliation? My price columns might have small floating-point differences after migration."
+  outputs:
+    response: |
+      ```python
+      from databricks.labs.lakebridge.reconcile.recon_config import (
+          Table, ColumnThresholds, Transformation
+      )
+
+      table = Table(
+          source_name="transactions",
+          target_name="transactions",
+          join_columns=["txn_id"],
+          column_thresholds=[
+              ColumnThresholds(
+                  column_name="amount",
+                  lower_bound="-0.01",
+                  upper_bound="0.01",
+                  type="decimal"
+              ),
+              ColumnThresholds(
+                  column_name="tax_rate",
+                  lower_bound="-1%",
+                  upper_bound="1%",
+                  type="float"
+              ),
+          ],
+          transformations=[
+              Transformation(
+                  column_name="amount",
+                  source="coalesce(cast(cast(amount as decimal(38,10)) as string), '_null_recon_')",
+                  target="coalesce(cast(format_number(cast(amount as decimal(38,10)), 10) as string), '_null_recon_')",
+              )
+          ],
+      )
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "ColumnThresholds defines acceptable variance per column with lower_bound and upper_bound"
+    - "Thresholds support both percentage (e.g. '-1%') and absolute (e.g. '-0.01') bounds"
+    - "The type field must match SQLGLOT DataType.NUMERIC_TYPES or TEMPORAL_TYPES"
+    - "Transformations should handle NULLs explicitly using coalesce"
+    expected_patterns:
+    - pattern: "ColumnThresholds"
+      min_count: 1
+      description: "Uses ColumnThresholds for numeric tolerance"
+    - pattern: "lower_bound"
+      min_count: 1
+      description: "Sets lower bound for threshold"
+    - pattern: "upper_bound"
+      min_count: 1
+      description: "Sets upper bound for threshold"
+    - pattern: "coalesce"
+      min_count: 1
+      description: "Handles NULLs with coalesce in transformations"
+    guidelines:
+    - "Must show both percentage and absolute threshold examples"
+    - "Must include transformations for decimal precision normalization"
+    - "Transformations must handle NULLs with coalesce"
+  metadata:
+    category: happy_path
+    difficulty: medium
+    source: auto_generated
+
+- id: recon_schema_only_005
+  inputs:
+    prompt: "I want to do a quick schema-only comparison before running full data reconciliation. How?"
+  outputs:
+    response: |
+      ```python
+      reconcile_config = ReconcileConfig(
+          data_source="oracle",
+          report_type="schema",
+          secret_scope="lakebridge_oracle",
+          database_config=DatabaseConfig(
+              source_schema="HR",
+              target_catalog="main",
+              target_schema="hr_migrated",
+          ),
+          metadata_config=ReconcileMetadataConfig(),
+      )
+
+      table_recon = TableRecon(tables=[
+          Table(source_name="employees", target_name="employees"),
+          Table(source_name="departments", target_name="departments"),
+      ])
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "Schema-only comparison uses report_type='schema'"
+    - "Schema report type does not require join_columns"
+    - "Schema comparison outputs schema_comparison and schema_difference tables"
+    expected_patterns:
+    - pattern: "report_type.*schema"
+      min_count: 1
+      description: "Sets report_type to schema"
+    - pattern: "Table\\("
+      min_count: 1
+      description: "Defines tables without join_columns for schema comparison"
+    guidelines:
+    - "Must set report_type to 'schema'"
+    - "Tables should not require join_columns for schema-only checks"
+    - "Should mention this is faster than full data reconciliation"
+  metadata:
+    category: happy_path
+    difficulty: easy
+    source: auto_generated
+
+- id: recon_filtered_subset_006
+  inputs:
+    prompt: "I only want to reconcile the last 30 days of data from SQL Server. How do I add filters?"
+  outputs:
+    response: |
+      ```python
+      from databricks.labs.lakebridge.reconcile.recon_config import Table, Filters
+
+      table = Table(
+          source_name="transactions",
+          target_name="transactions",
+          join_columns=["txn_id"],
+          filters=Filters(
+              source="txn_date >= DATEADD(day, -30, GETDATE())",
+              target="txn_date >= date_sub(current_date(), 30)",
+          ),
+      )
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "Filters apply WHERE clauses to source and target independently"
+    - "Filter expressions use dialect-specific SQL (DATEADD/GETDATE for SQL Server, date_sub for Databricks)"
+    - "Source and target filters can have different SQL syntax for the same logical condition"
+    expected_patterns:
+    - pattern: "Filters"
+      min_count: 1
+      description: "Uses Filters for WHERE clause configuration"
+    - pattern: "source.*DATEADD|source.*dateadd"
+      min_count: 1
+      description: "Uses SQL Server dialect for source filter"
+    - pattern: "target.*date_sub|target.*current_date"
+      min_count: 1
+      description: "Uses Databricks dialect for target filter"
+    guidelines:
+    - "Must show dialect-specific SQL in source and target filters"
+    - "Source filter must use SQL Server syntax (DATEADD, GETDATE)"
+    - "Target filter must use Databricks SQL syntax (date_sub, current_date)"
+  metadata:
+    category: happy_path
+    difficulty: medium
+    source: auto_generated
+
+- id: recon_aggregate_validation_007
+  inputs:
+    prompt: "How can I validate aggregate metrics like SUM and COUNT match between source and target without row-level comparison?"
+  outputs:
+    response: |
+      ```python
+      from databricks.labs.lakebridge.reconcile.recon_config import Table, Aggregate
+
+      table = Table(
+          source_name="sales",
+          target_name="sales",
+          join_columns=["sale_id"],
+          aggregates=[
+              Aggregate(type="sum", agg_columns=["revenue"], group_by_columns=["region"]),
+              Aggregate(type="count", agg_columns=["sale_id"]),
+              Aggregate(type="avg", agg_columns=["unit_price"], group_by_columns=["product_category"]),
+          ],
+      )
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "Aggregate reconciliation compares aggregate metrics between source and target"
+    - "Supported aggregate functions include min, max, count, sum, avg, mean, mode, stddev, variance, median"
+    - "Aggregates can include group_by_columns for dimensional breakdown"
+    - "select_columns and drop_columns are not applied to aggregate reconciliation"
+    expected_patterns:
+    - pattern: "Aggregate"
+      min_count: 1
+      description: "Uses Aggregate for metric comparison"
+    - pattern: "agg_columns"
+      min_count: 1
+      description: "Specifies columns to aggregate"
+    - pattern: "group_by_columns"
+      min_count: 1
+      description: "Specifies grouping dimensions"
+    - pattern: "type.*sum|type.*count|type.*avg"
+      min_count: 2
+      description: "Uses multiple aggregate types"
+    guidelines:
+    - "Must show at least two different aggregate types"
+    - "Must include at least one aggregate with group_by_columns"
+    - "Should mention supported aggregate functions"
+  metadata:
+    category: happy_path
+    difficulty: medium
+    source: auto_generated
+
+- id: recon_secret_scope_008
+  inputs:
+    prompt: "How do I set up the secret scope for connecting Lakebridge to Snowflake?"
+  outputs:
+    response: |
+      ```bash
+      databricks secrets create-scope lakebridge_snowflake
+      databricks secrets put-secret lakebridge_snowflake sfUrl --string-value "myaccount.snowflakecomputing.com"
+      databricks secrets put-secret lakebridge_snowflake sfUser --string-value "MIGRATION_SVC"
+      databricks secrets put-secret lakebridge_snowflake sfPassword --string-value "secure_password"
+      databricks secrets put-secret lakebridge_snowflake sfWarehouse --string-value "COMPUTE_WH"
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "Snowflake secrets are stored in scope lakebridge_snowflake by default"
+    - "Required keys include sfUrl, sfUser, and either sfPassword or pem_private_key"
+    - "Lakebridge prefers PEM private key authentication over password"
+    expected_patterns:
+    - pattern: "create-scope"
+      min_count: 1
+      description: "Creates a Databricks secret scope"
+    - pattern: "put-secret"
+      min_count: 2
+      description: "Adds secrets to the scope"
+    - pattern: "sfUrl"
+      min_count: 1
+      description: "Configures Snowflake URL"
+    - pattern: "sfUser"
+      min_count: 1
+      description: "Configures Snowflake username"
+    guidelines:
+    - "Must show databricks secrets create-scope and put-secret commands"
+    - "Must include sfUrl, sfUser, and sfPassword as minimum secrets"
+    - "Should mention PEM key auth as preferred over password"
+  metadata:
+    category: happy_path
+    difficulty: easy
+    source: auto_generated
+
+- id: recon_interpret_results_009
+  inputs:
+    prompt: "My Lakebridge reconciliation ran. How do I check the results and find mismatches?"
+  outputs:
+    response: |
+      ```sql
+      -- Check overall status
+      SELECT * FROM remorph.reconcile.main_metrics
+      WHERE recon_id = '<your_recon_id>';
+
+      -- Find rows missing in target
+      SELECT * FROM remorph.reconcile.missing_in_tgt
+      WHERE recon_id = '<your_recon_id>';
+
+      -- Find column-level mismatches
+      SELECT * FROM remorph.reconcile.mismatch_data
+      WHERE recon_id = '<your_recon_id>';
+
+      -- Check schema differences
+      SELECT * FROM remorph.reconcile.schema_comparison
+      WHERE recon_id = '<your_recon_id>'
+        AND is_valid = false;
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "Reconciliation results are stored in the metadata catalog/schema (default remorph.reconcile)"
+    - "Each reconciliation run has a unique recon_id for tracking"
+    - "Key output tables include main_metrics, missing_in_tgt, missing_in_src, mismatch_data, and schema_comparison"
+    expected_patterns:
+    - pattern: "remorph\\.reconcile"
+      min_count: 1
+      description: "Queries the default metadata schema"
+    - pattern: "recon_id"
+      min_count: 2
+      description: "Filters by reconciliation run ID"
+    - pattern: "main_metrics"
+      min_count: 1
+      description: "Queries main metrics table"
+    - pattern: "missing_in_tgt"
+      min_count: 1
+      description: "Queries missing rows table"
+    - pattern: "mismatch_data"
+      min_count: 1
+      description: "Queries mismatch data table"
+    guidelines:
+    - "Must query remorph.reconcile tables (the default metadata location)"
+    - "Must filter by recon_id"
+    - "Must show queries for main_metrics, missing rows, and mismatch data"
+  metadata:
+    category: happy_path
+    difficulty: easy
+    source: auto_generated
+
+- id: recon_jdbc_large_table_010
+  inputs:
+    prompt: "How do I configure JDBC reader options for reconciling a very large Oracle table with 100 million rows?"
+  outputs:
+    response: |
+      ```python
+      from databricks.labs.lakebridge.reconcile.recon_config import Table, JdbcReaderOptions
+
+      table = Table(
+          source_name="fact_orders",
+          target_name="fact_orders",
+          join_columns=["order_id"],
+          jdbc_reader_options=JdbcReaderOptions(
+              number_partitions=200,
+              partition_column="order_id",
+              lower_bound="1",
+              upper_bound="100000000",
+              fetch_size=10000,
+          ),
+      )
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "JdbcReaderOptions controls parallel reads from JDBC sources"
+    - "partition_column should be a high-cardinality numeric column"
+    - "number_partitions controls the degree of parallelism"
+    - "fetch_size controls rows per JDBC round-trip (default is 100)"
+    expected_patterns:
+    - pattern: "JdbcReaderOptions"
+      min_count: 1
+      description: "Uses JdbcReaderOptions for parallel reads"
+    - pattern: "number_partitions"
+      min_count: 1
+      description: "Configures partition count"
+    - pattern: "partition_column"
+      min_count: 1
+      description: "Specifies column for partitioning"
+    - pattern: "fetch_size"
+      min_count: 1
+      description: "Configures JDBC fetch size"
+    guidelines:
+    - "Must use JdbcReaderOptions with all required fields"
+    - "Should recommend a high-cardinality column for partition_column"
+    - "Should explain the relationship between number_partitions and cluster size"
+  metadata:
+    category: happy_path
+    difficulty: medium
+    source: auto_generated
+
+- id: recon_databricks_to_databricks_011
+  inputs:
+    prompt: "I need to validate migration from Hive metastore tables to Unity Catalog within the same Databricks workspace."
+  outputs:
+    response: |
+      ```python
+      reconcile_config = ReconcileConfig(
+          data_source="databricks",
+          report_type="all",
+          secret_scope="",
+          database_config=DatabaseConfig(
+              source_catalog="hive_metastore",
+              source_schema="legacy_db",
+              target_catalog="main",
+              target_schema="migrated_db",
+          ),
+          metadata_config=ReconcileMetadataConfig(),
+      )
+      ```
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "Databricks-to-Databricks reconciliation uses data_source='databricks'"
+    - "No secret scope is needed for Databricks-to-Databricks (both sides use workspace auth)"
+    - "source_catalog can be 'hive_metastore' for legacy tables"
+    expected_patterns:
+    - pattern: "data_source.*databricks"
+      min_count: 1
+      description: "Uses databricks as data source"
+    - pattern: "hive_metastore"
+      min_count: 1
+      description: "References hive_metastore as source catalog"
+    - pattern: "secret_scope.*\"\""
+      min_count: 1
+      description: "Empty secret scope for Databricks source"
+    guidelines:
+    - "Must set data_source to 'databricks'"
+    - "Must show empty secret_scope since no external credentials are needed"
+    - "Should show hive_metastore as source_catalog"
+  metadata:
+    category: happy_path
+    difficulty: easy
+    source: auto_generated
+
+- id: recon_report_type_selection_012
+  inputs:
+    prompt: "What are the different report types in Lakebridge reconciliation and when should I use each?"
+  outputs:
+    response: |
+      | Type | Purpose | Join columns required | Use when |
+      |------|---------|----------------------|----------|
+      | `schema` | Compare table schemas | No | Quick sanity check after migration |
+      | `row` | Hash-based row matching | No | Verify row counts without column-level detail |
+      | `data` | Row + column-level comparison | Yes | Full data validation with mismatch details |
+      | `all` | Schema + data combined | Yes | Complete post-migration validation |
+
+      Start with `schema` for a fast check, then use `data` or `all` for full validation.
+    execution_success: true
+  expectations:
+    expected_facts:
+    - "Lakebridge supports four report types: schema, row, data, and all"
+    - "schema report only compares table structure, not data content"
+    - "data report requires join_columns for row matching"
+    - "all report combines both schema and data comparison"
+    - "row report uses hash-based matching without join columns"
+    expected_patterns:
+    - pattern: "schema"
+      min_count: 2
+      description: "Describes schema report type"
+    - pattern: "data"
+      min_count: 2
+      description: "Describes data report type"
+    - pattern: "join_columns"
+      min_count: 1
+      description: "Mentions join_columns requirement"
+    guidelines:
+    - "Must describe all four report types: schema, row, data, all"
+    - "Must explain when to use each type"
+    - "Must note which types require join_columns"
+  metadata:
+    category: happy_path
+    difficulty: easy
+    source: auto_generated

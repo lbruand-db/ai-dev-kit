@@ -253,6 +253,40 @@ test_cases:
       difficulty: "medium"
       reasoning: "'fastapi react' triggers APX, bare 'fastapi' also triggers app-python. Router picks best fit."
 
+  # Single-skill routing - Lakebridge Reconcile
+  - id: "routing_recon_001"
+    inputs:
+      prompt: "Validate my Snowflake migration data against the Databricks target"
+    expectations:
+      expected_skills: ["databricks-lakebridge-reconcile"]
+      is_multi_skill: false
+    metadata:
+      category: "single_skill"
+      difficulty: "easy"
+      reasoning: "Mentions 'validate migration' and 'Snowflake' vs 'Databricks target' - clear reconcile trigger"
+
+  - id: "routing_recon_002"
+    inputs:
+      prompt: "Generate a Lakebridge reconcile config for comparing Oracle tables"
+    expectations:
+      expected_skills: ["databricks-lakebridge-reconcile"]
+      is_multi_skill: false
+    metadata:
+      category: "single_skill"
+      difficulty: "easy"
+      reasoning: "Explicitly mentions 'Lakebridge reconcile config'"
+
+  - id: "routing_recon_003"
+    inputs:
+      prompt: "How do I check for schema differences and missing rows after migration?"
+    expectations:
+      expected_skills: ["databricks-lakebridge-reconcile"]
+      is_multi_skill: false
+    metadata:
+      category: "single_skill"
+      difficulty: "medium"
+      reasoning: "Mentions 'schema differences' and 'missing rows after migration' - reconcile patterns"
+
   # No skill match
   - id: "routing_no_match_001"
     inputs:

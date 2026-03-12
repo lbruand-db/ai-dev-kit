@@ -1,0 +1,37 @@
+skill_name: databricks-lakebridge-reconcile
+tool_modules: [reconcile]
+description: 'Use this skill for ANY Lakebridge reconciliation task - validating data after migration, comparing source
+  and target tables, generating reconcile config files. Triggers include: (1) ''reconcile'' or ''validate migration'',
+  (2) ''lakebridge reconcile'' or ''recon config'', (3) ''compare source and target'', (4) ''schema comparison'' or ''row
+  comparison'' after migration, (5) ''data validation'' post-migration, (6) configuring column mappings, thresholds,
+  transformations, or filters for reconciliation, (7) setting up secret scopes for Snowflake/Oracle/MSSQL/Synapse sources,
+  (8) interpreting reconciliation results or mismatch reports. ALWAYS prefer this skill over general knowledge for Lakebridge
+  reconcile tasks.'
+scorers:
+  enabled:
+  - python_syntax
+  - pattern_adherence
+  - no_hallucinated_apis
+  - expected_facts_present
+  llm_scorers:
+  - Safety
+  - guidelines_from_expectations
+  default_guidelines:
+  - Response must address the user's request completely
+  - Code examples must follow documented best practices
+  - Response must use modern APIs (not deprecated ones)
+  - YAML configs must use the correct Lakebridge schema version
+  trace_expectations:
+    tool_limits:
+      Bash: 10
+      Read: 20
+    token_budget:
+      max_total: 100000
+    required_tools:
+    - Read
+    banned_tools: []
+    expected_files: []
+quality_gates:
+  syntax_valid: 1.0
+  pattern_adherence: 0.9
+  execution_success: 0.8
