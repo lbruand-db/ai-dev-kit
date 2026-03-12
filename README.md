@@ -2,6 +2,10 @@
 
 Skill and test suite for **Lakebridge Reconcile** — validating data migrations from Snowflake, Oracle, SQL Server, and Synapse to Databricks Unity Catalog.
 
+<p align="center">
+  <img src="docs/img/lakebridge_config_generation.svg" alt="Lakebridge Reconcile — Config Generation Demo" width="700">
+</p>
+
 ---
 
 ## What Is Lakebridge Reconcile?
