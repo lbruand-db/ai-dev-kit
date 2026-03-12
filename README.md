@@ -1,183 +1,109 @@
-# Databricks AI Dev Kit
+# Databricks Lakebridge Reconcile
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Databricks-Certified%20Gold%20Project-FFD700?style=for-the-badge&logo=databricks&logoColor=black" alt="Databricks Certified Gold Project">
-</p>
+Skill and test suite for **Lakebridge Reconcile** — validating data migrations from Snowflake, Oracle, SQL Server, and Synapse to Databricks Unity Catalog.
 
 ---
 
-## Overview
+## What Is Lakebridge Reconcile?
 
-AI-Driven Development (vibe coding) on Databricks just got a whole lot better. The **AI Dev Kit** gives your AI coding assistant (Claude Code, Cursor, Windsurf, etc.) the trusted sources it needs to build faster and smarter on Databricks.
+Lakebridge Reconcile compares source and target tables after a migration, checking:
 
-<p align="center">
-  <img src="databricks-tools-core/docs/architecture.svg" alt="Architecture" width="700">
-</p>
+- **Schema** — column names, data types, structural differences
+- **Row counts** — missing rows in source or target
+- **Data values** — column-level mismatches with configurable thresholds
+- **Aggregates** — SUM, COUNT, AVG across grouped dimensions
 
----
-
-## What Can I Build?
-
-- **Spark Declarative Pipelines** (streaming tables, CDC, SCD Type 2, Auto Loader)
-- **Databricks Jobs** (scheduled workflows, multi-task DAGs)
-- **AI/BI Dashboards** (visualizations, KPIs, analytics)
-- **Unity Catalog** (tables, volumes, governance)
-- **Genie Spaces** (natural language data exploration)
-- **Knowledge Assistants** (RAG-based document Q&A)
-- **MLflow Experiments** (evaluation, scoring, traces)
-- **Model Serving** (deploy ML models and AI agents to endpoints)
-- **Databricks Apps** (full-stack web applications)
-- ...and more
+The skill teaches an AI assistant how to generate the correct YAML configs (`reconcile.yml`, `recon_config.yml`) and Python notebooks to run reconciliation on Databricks.
 
 ---
 
-## Choose Your Own Adventure
+## Repository Structure
 
-| Adventure                        | Best For | Start Here |
-|----------------------------------|----------|------------|
-| :star: [**Install AI Dev Kit**](#install-in-existing-project) | **Start here!** Follow quick install instructions to add to your existing project folder | [Quick Start (install)](#install-in-existing-project)
-| [**Visual Builder App**](#visual-builder-app) | Web-based UI for Databricks development | `databricks-builder-app/` |
-| [**Core Library**](#core-library) | Building custom integrations (LangChain, OpenAI, etc.) | `pip install` |
-| [**Skills Only**](databricks-skills/) | Provide Databricks patterns and best practices (without MCP functions) | Install skills |
-| [**MCP Tools Only**](databricks-mcp-server/) | Just executable actions (no guidance) | Register MCP server |
+```
+├── databricks-skills/
+│   └── databricks-lakebridge-reconcile/   # The skill (SKILL.md + reference docs)
+├── specs/
+│   └── databricks-lakebridge-reconcile/   # Specification and test spec
+├── .test/
+│   ├── tests/tier1/lakebridge_reconcile/  # Tier 1 tests (LLM agent loop)
+│   ├── skills/databricks-lakebridge-reconcile/  # Ground truth test data
+│   ├── demos/                             # Asciicast demo recordings
+│   ├── src/skill_test/                    # Test framework library
+│   └── scripts/                           # Evaluation scripts
+└── README.md
+```
+
 ---
 
 ## Quick Start
 
 ### Prerequisites
 
-- [uv](https://github.com/astral-sh/uv) - Python package manager
-- [Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/) - Command line interface for Databricks
-- AI coding environment (one or more):
-  - [Claude Code](https://claude.ai/code)
-  - [Cursor](https://cursor.com)
-  - [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+- Python 3.10+
+- [uv](https://github.com/astral-sh/uv) package manager
+- Databricks workspace with Claude Sonnet endpoint (`databricks-claude-sonnet-4-6`)
+- `DATABRICKS_HOST` and `DATABRICKS_TOKEN` in `.env` or environment
 
+### Run Tier 1 Tests
 
-### Install in existing project
-By default this will install at a project level rather than a user level. This is often a good fit, but requires you to run your client from the exact directory that was used for the install.  
-_Note: Project configuration files can be re-used in other projects. You find these configs under .claude, .cursor, or .gemini_
-
-#### Mac / Linux
-
-**Basic installation** (uses DEFAULT profile, project scope)
+The tier 1 tests exercise the skill via a multi-turn LLM agent loop with mock Databricks tools backed by DuckDB + SQLGlot:
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.sh)
+cd .test
+uv run --extra tier1 --extra dev python -m pytest tests/tier1/ -m tier1 -v
 ```
 
-<details>
-<summary><strong>Advanced Options</strong> (click to expand)</summary>
+**12 tests** covering:
+- **Tests 1–6**: Config generation (Snowflake, column mapping, thresholds, schema-only, filtered MSSQL, aggregates)
+- **Tests 7–9**: Notebook code generation (Snowflake, JDBC/Oracle, Databricks-to-Databricks)
+- **Tests 10–12**: Result interpretation (overall status, missing rows, column mismatches)
 
-**Global installation with force reinstall**
+### Run Ground Truth Evaluation
+
+Static validation of skill examples (YAML/Python syntax, import resolution):
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.sh) --global --force
+cd .test
+uv run python scripts/run_eval.py databricks-lakebridge-reconcile
 ```
 
-**Specify profile and force reinstall**
+### Play the Demo
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.sh) --profile DEFAULT --force
+asciinema play .test/demos/lakebridge_config_generation.cast
 ```
-
-**Install for specific tools only**
-
-```bash
-bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.sh) --tools cursor,gemini
-```
-
-</details>
-
-**Next steps:** Respond to interactive prompts and follow the on-screen instructions.
-- Note: Cursor and Copilot require updating settings manually after install.
-
-#### Windows (PowerShell)
-
-**Basic installation** (uses DEFAULT profile, project scope)
-
-```powershell
-irm https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.ps1 | iex
-```
-
-<details>
-<summary><strong>Advanced Options</strong> (click to expand)</summary>
-
-**Download script first**
-
-```powershell
-irm https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.ps1 -OutFile install.ps1
-```
-
-**Global installation with force reinstall**
-
-```powershell
-.\install.ps1 -Global -Force
-```
-
-**Specify profile and force reinstall**
-
-```powershell
-.\install.ps1 -Profile DEFAULT -Force
-```
-
-**Install for specific tools only**
-
-```powershell
-.\install.ps1 -Tools cursor,gemini
-```
-
-</details>
-
-**Next steps:** Respond to interactive prompts and follow the on-screen instructions.
-- Note: Cursor and Copilot require updating settings manually after install.
-
-
-### Visual Builder App
-
-Full-stack web application with chat UI for Databricks development:
-
-```bash
-cd ai-dev-kit/databricks-builder-app
-./scripts/setup.sh
-# Follow instructions to start the app
-```
-
-
-### Core Library
-
-Use `databricks-tools-core` directly in your Python projects:
-
-```python
-from databricks_tools_core.sql import execute_sql
-
-results = execute_sql("SELECT * FROM my_catalog.schema.table LIMIT 10")
-```
-
-Works with LangChain, OpenAI Agents SDK, or any Python framework. See [databricks-tools-core/](databricks-tools-core/) for details.
 
 ---
 
-## What's Included
+## The Skill
 
-| Component | Description |
-|-----------|-------------|
-| [`databricks-tools-core/`](databricks-tools-core/) | Python library with high-level Databricks functions |
-| [`databricks-mcp-server/`](databricks-mcp-server/) | MCP server exposing 50+ tools for AI assistants |
-| [`databricks-skills/`](databricks-skills/) | 19 markdown skills teaching Databricks patterns |
-| [`databricks-builder-app/`](databricks-builder-app/) | Full-stack web app with Claude Code integration |
+The skill lives in [`databricks-skills/databricks-lakebridge-reconcile/`](databricks-skills/databricks-lakebridge-reconcile/) and consists of:
+
+| File | Purpose |
+|------|---------|
+| `SKILL.md` | Main skill instructions and usage patterns |
+| `configuration.md` | YAML config schema reference (reconcile.yml, recon_config.yml) |
+| `examples.md` | Worked examples for common scenarios |
+| `secret_scopes.md` | Secret scope setup per source platform |
+
+Supported source platforms: **Snowflake**, **Oracle**, **SQL Server (MSSQL)**, **Synapse**, **Databricks** (Hive metastore → Unity Catalog).
 
 ---
 
-## Star History
+## Testing Architecture
 
-<a href="https://star-history.com/#databricks-solutions/ai-dev-kit&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=databricks-solutions/ai-dev-kit&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=databricks-solutions/ai-dev-kit&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=databricks-solutions/ai-dev-kit&type=Date" />
- </picture>
-</a>
+### Tier 1 — LLM Agent Loop Tests
+
+Real LLM calls to Claude Sonnet on Databricks Foundation Model API, with mock tools:
+
+- **DuckDB** — in-memory database seeded with source, target, and reconciliation output tables
+- **SQLGlot** — transpiles Databricks SQL → DuckDB dialect for local execution
+- **Mock tools** — `execute_sql`, `list_secrets`, `connect_to_workspace`, etc.
+- **OpenAI-compatible client** — talks to Databricks FMAPI serving endpoint
+
+### Ground Truth — Offline Evaluation
+
+YAML-based test cases validated locally (syntax, imports, structure) via the `skill-test` framework.
 
 ---
 
@@ -186,35 +112,3 @@ Works with LangChain, OpenAI Agents SDK, or any Python framework. See [databrick
 (c) 2026 Databricks, Inc. All rights reserved.
 
 The source in this project is provided subject to the [Databricks License](https://databricks.com/db-license-source). See [LICENSE.md](LICENSE.md) for details.
-
-<details>
-<summary><strong>Third-Party Licenses</strong></summary>
-
-| Package | Version | License | Project URL |
-|---------|---------|---------|-------------|
-| [fastmcp](https://github.com/jlowin/fastmcp) | ≥0.1.0 | MIT | https://github.com/jlowin/fastmcp |
-| [mcp](https://github.com/modelcontextprotocol/python-sdk) | ≥1.0.0 | MIT | https://github.com/modelcontextprotocol/python-sdk |
-| [sqlglot](https://github.com/tobymao/sqlglot) | ≥20.0.0 | MIT | https://github.com/tobymao/sqlglot |
-| [sqlfluff](https://github.com/sqlfluff/sqlfluff) | ≥3.0.0 | MIT | https://github.com/sqlfluff/sqlfluff |
-| [litellm](https://github.com/BerriAI/litellm) | ≥1.0.0 | MIT | https://github.com/BerriAI/litellm |
-| [pymupdf](https://github.com/pymupdf/PyMuPDF) | ≥1.24.0 | AGPL-3.0 | https://github.com/pymupdf/PyMuPDF |
-| [claude-agent-sdk](https://github.com/anthropics/claude-code) | ≥0.1.19 | MIT | https://github.com/anthropics/claude-code |
-| [fastapi](https://github.com/fastapi/fastapi) | ≥0.115.8 | MIT | https://github.com/fastapi/fastapi |
-| [uvicorn](https://github.com/encode/uvicorn) | ≥0.34.0 | BSD-3-Clause | https://github.com/encode/uvicorn |
-| [httpx](https://github.com/encode/httpx) | ≥0.28.0 | BSD-3-Clause | https://github.com/encode/httpx |
-| [sqlalchemy](https://github.com/sqlalchemy/sqlalchemy) | ≥2.0.41 | MIT | https://github.com/sqlalchemy/sqlalchemy |
-| [alembic](https://github.com/sqlalchemy/alembic) | ≥1.16.1 | MIT | https://github.com/sqlalchemy/alembic |
-| [asyncpg](https://github.com/MagicStack/asyncpg) | ≥0.30.0 | Apache-2.0 | https://github.com/MagicStack/asyncpg |
-| [greenlet](https://github.com/python-greenlet/greenlet) | ≥3.0.0 | MIT | https://github.com/python-greenlet/greenlet |
-| [psycopg2-binary](https://github.com/psycopg/psycopg2) | ≥2.9.11 | LGPL-3.0 | https://github.com/psycopg/psycopg2 |
-
-</details>
-
----
-
-<details>
-<summary><strong>Acknowledgments</strong></summary>
-
-MCP Databricks Command Execution API from [databricks-exec-code](https://github.com/databricks-solutions/databricks-exec-code-mcp) by Natyra Bajraktari and Henryk Borzymowski.
-
-</details>
