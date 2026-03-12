@@ -347,3 +347,181 @@ uv run pytest test/tier1/lakebridge-reconcile/test_config_generation.py::test_ba
 3. **Validate configs structurally, not textually.** The agent may produce valid YAML in different orderings or styles. `config_validator.py` parses YAML into Lakebridge dataclasses and checks field values.
 
 4. **Separate source and target schemas in DuckDB.** Using `source_db.public.*` and `main.migrated.*` schemas mirrors real three-part naming and tests that the agent generates correct `database_config`.
+
+5. **SQLGlot multi-dialect transpilation for source platform simulation.** Rather than maintaining separate mock backends per source, all source dialects transpile through SQLGlot to DuckDB for execution. Platform-specific type names and SQL syntax are modeled at the schema/fixture level.
+
+## Multi-Platform Source Testing
+
+### Overview
+
+SQLGlot supports transpilation from all Lakebridge source dialects to DuckDB:
+
+| Source Platform | SQLGlot Dialect | Key Type Mappings | Platform-Specific SQL |
+|-----------------|----------------|-------------------|----------------------|
+| Snowflake | `snowflake` | `VARIANT` → `VARCHAR`, `NUMBER(38,0)` → `BIGINT`, `TIMESTAMP_NTZ` → `TIMESTAMP` | `FLATTEN`, `PARSE_JSON`, `IFF` |
+| Oracle | `oracle` | `NUMBER(p,s)` → `DECIMAL(p,s)`, `VARCHAR2` → `VARCHAR`, `DATE` → `TIMESTAMP` | `NVL`, `ROWNUM`, `CONNECT BY` |
+| SQL Server / Synapse | `tsql` | `NVARCHAR` → `VARCHAR`, `DATETIME2` → `TIMESTAMP`, `BIT` → `BOOLEAN` | `GETDATE()`, `ISNULL`, `TOP N` |
+| Databricks | `databricks` | (identity) | `date_sub`, `current_date()` |
+
+### Per-Dialect Mock Schemas
+
+Each source platform gets its own DuckDB schema with platform-native type names stored as metadata. The `duckdb_backend.py` translates these to DuckDB-compatible types at creation time but preserves the original type names in a `column_metadata` table for schema comparison tests.
+
+```python
+PLATFORM_SCHEMAS = {
+    "snowflake": {
+        "db_schema": "snowflake_src.public",
+        "columns": {
+            "customers": {
+                "customer_id": {"native_type": "NUMBER(38,0)", "duckdb_type": "BIGINT"},
+                "name": {"native_type": "VARCHAR(255)", "duckdb_type": "VARCHAR(255)"},
+                "metadata": {"native_type": "VARIANT", "duckdb_type": "VARCHAR"},
+                "created_at": {"native_type": "TIMESTAMP_NTZ", "duckdb_type": "TIMESTAMP"},
+            }
+        },
+        "secret_scope": "lakebridge_snowflake",
+        "database_config": {
+            "source_catalog": "PROD_DB",
+            "source_schema": "PUBLIC",
+        },
+    },
+    "oracle": {
+        "db_schema": "oracle_src.app",
+        "columns": {
+            "customers": {
+                "customer_id": {"native_type": "NUMBER(10)", "duckdb_type": "INTEGER"},
+                "name": {"native_type": "VARCHAR2(200)", "duckdb_type": "VARCHAR(200)"},
+                "balance": {"native_type": "NUMBER(15,4)", "duckdb_type": "DECIMAL(15,4)"},
+                "created_at": {"native_type": "DATE", "duckdb_type": "TIMESTAMP"},
+            }
+        },
+        "secret_scope": "lakebridge_oracle",
+        "database_config": {
+            "source_catalog": "ORCL",
+            "source_schema": "APP",
+        },
+    },
+    "mssql": {
+        "db_schema": "mssql_src.dbo",
+        "columns": {
+            "customers": {
+                "customer_id": {"native_type": "INT", "duckdb_type": "INTEGER"},
+                "name": {"native_type": "NVARCHAR(256)", "duckdb_type": "VARCHAR(256)"},
+                "is_active": {"native_type": "BIT", "duckdb_type": "BOOLEAN"},
+                "created_at": {"native_type": "DATETIME2", "duckdb_type": "TIMESTAMP"},
+            }
+        },
+        "secret_scope": "lakebridge_mssql",
+        "database_config": {
+            "source_catalog": "SALES_DB",
+            "source_schema": "dbo",
+        },
+    },
+    "synapse": {
+        "db_schema": "synapse_src.dbo",
+        "columns": {
+            "customers": {
+                "customer_id": {"native_type": "INT", "duckdb_type": "INTEGER"},
+                "name": {"native_type": "NVARCHAR(MAX)", "duckdb_type": "VARCHAR"},
+                "revenue": {"native_type": "MONEY", "duckdb_type": "DECIMAL(19,4)"},
+                "created_at": {"native_type": "DATETIME2(7)", "duckdb_type": "TIMESTAMP"},
+            }
+        },
+        "secret_scope": "lakebridge_synapse",
+        "database_config": {
+            "source_catalog": "SYNAPSE_DW",
+            "source_schema": "dbo",
+        },
+    },
+}
+```
+
+### Extended SQL Routing (per dialect)
+
+The `duckdb_backend.py` SQL router gains dialect awareness:
+
+```
+SQL input + source_dialect
+  │
+  ├── SHOW TABLES / SHOW SCHEMAS    → pre-canned fixture (same as before)
+  ├── DESCRIBE TABLE                → DuckDB DESCRIBE + type remapping from column_metadata
+  ├── dbutils.secrets.*             → pre-canned fixture with platform-specific scope
+  ├── Source-dialect SQL            → sqlglot.transpile(read=source_dialect, write="duckdb") → execute
+  └── Target-dialect SQL (Databricks) → sqlglot.transpile(read="databricks", write="duckdb") → execute
+```
+
+### Platform-Specific Filter Transpilation
+
+The agent should generate filters in the correct source dialect. SQLGlot validates these by successfully transpiling them:
+
+| Source | Source Filter SQL | DuckDB Transpilation |
+|--------|------------------|---------------------|
+| Snowflake | `created_at >= DATEADD('day', -90, CURRENT_TIMESTAMP())` | `created_at >= CURRENT_TIMESTAMP - INTERVAL 90 DAY` |
+| Oracle | `created_at >= SYSDATE - 90` | `created_at >= CURRENT_TIMESTAMP - INTERVAL 90 DAY` |
+| MSSQL/Synapse | `created_at >= DATEADD(day, -90, GETDATE())` | `created_at >= CURRENT_TIMESTAMP - INTERVAL 90 DAY` |
+
+### Additional Multi-Platform Test Cases (Tests 13–18)
+
+These extend the existing 12 tests with platform-specific scenarios.
+
+**Test 13: Oracle schema reconciliation with type mapping**
+- User prompt: "Generate schema reconciliation config for Oracle source (ORCL.APP) to main.migrated. Tables: customers."
+- Assert: `data_source: oracle`, `secret_scope: lakebridge_oracle`
+- Assert: Schema comparison surfaces `VARCHAR2` → `STRING`, `NUMBER(15,4)` → `DECIMAL(15,4)`, `DATE` → `TIMESTAMP` type differences
+- Assert: Config passes `validate_reconcile_yml()`
+
+**Test 14: SQL Server filtered reconciliation with MSSQL dialect**
+- User prompt: "Reconcile orders from SQL Server (SALES_DB.dbo) to main.migrated. Only include orders from the last 30 days."
+- Assert: `data_source: mssql`, `secret_scope: lakebridge_mssql`
+- Assert: `filters.source` uses T-SQL syntax (`DATEADD(day, -30, GETDATE())`)
+- Assert: `filters.target` uses Databricks syntax (`date_sub(current_date(), 30)`)
+- Assert: Source filter successfully transpiles via `sqlglot.transpile(read="tsql", write="duckdb")`
+
+**Test 15: Synapse config with JDBC reader options**
+- User prompt: "Generate config for reconciling a large fact table from Azure Synapse (SYNAPSE_DW.dbo.sales_fact, ~500M rows) to main.warehouse.sales_fact."
+- Assert: `data_source: synapse`, `secret_scope: lakebridge_synapse`
+- Assert: `jdbc_reader_options` includes `number_partitions` > 1, `partition_column`, bounds
+- Assert: `database_config` includes Synapse-specific fields
+
+**Test 16: Snowflake with VARIANT column handling**
+- User prompt: "Reconcile a Snowflake table that has a VARIANT metadata column. The target stores it as STRING. Generate config with appropriate transformations."
+- Assert: `column_mapping` or `transformations` handle `VARIANT` → `STRING` conversion
+- Assert: `select_columns` or `column_thresholds` reference the metadata column
+- Assert: Config accounts for JSON serialization differences
+
+**Test 17: Cross-platform secret scope selection**
+- User prompt: "I need to reconcile tables from three sources: Snowflake (analytics), Oracle (legacy CRM), and SQL Server (ERP). Generate the three reconcile.yml files."
+- Assert: Three separate configs with correct `data_source` / `secret_scope` pairs:
+  - `snowflake` / `lakebridge_snowflake`
+  - `oracle` / `lakebridge_oracle`
+  - `mssql` / `lakebridge_mssql`
+- Assert: All three pass `validate_reconcile_yml()`
+
+**Test 18: Databricks-to-Databricks with no secret scope**
+- User prompt: "Validate Hive metastore migration to Unity Catalog. Source: hive_metastore.legacy.customers, target: main.migrated.customers."
+- Assert: `data_source: databricks`
+- Assert: `secret_scope` is empty string `""`
+- Assert: No JDBC reader options (both sides are Databricks-native)
+- Assert: `source_catalog: hive_metastore`, `target_catalog: main`
+
+### Limitations & What DuckDB Cannot Simulate
+
+| Aspect | Can Test | Cannot Test |
+|--------|----------|-------------|
+| Config YAML structure | Yes — validate against dataclasses | — |
+| Source-dialect SQL syntax | Yes — SQLGlot transpiles or rejects invalid SQL | — |
+| Type mapping correctness | Partially — native types stored as metadata | Actual runtime coercion behavior |
+| JDBC connectivity | No | Real JDBC driver behavior, connection pooling |
+| Oracle `NLS_DATE_FORMAT` | No | Session-level date format settings |
+| Snowflake `COPY INTO` / stages | No | Stage-based data access patterns |
+| MSSQL collation (`SQL_Latin1_General_CP1_CI_AS`) | No | Collation-sensitive string comparison |
+| Synapse distribution (`HASH`, `ROUND_ROBIN`) | No | MPP query plan behavior |
+| Secret scope contents | Fixture only | Real Databricks secret store |
+| Lakebridge reconciliation engine | No — testing the *skill*, not the engine | Actual row-by-row comparison logic |
+
+### Updated Cost Estimate
+
+| Factor | Estimate |
+|--------|----------|
+| Cost per run (18 tests) | ~$2–5 (18 tests × ~$0.10–0.25 each), billed as DBUs |
+| Runtime | ~8–15 min (18 tests, 20 max turns each) |
