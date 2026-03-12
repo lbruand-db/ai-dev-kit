@@ -9,10 +9,13 @@ test_cases:
     prompt: "How do I set up Lakebridge reconciliation to validate a Snowflake migration to Unity Catalog?"
   outputs:
     response: |
-      ```python
+      First install the package in a notebook cell:
+      ```bash
       %pip install databricks-labs-lakebridge
-      dbutils.library.restartPython()
+      ```
 
+      Then run the reconciliation:
+      ```python
       from databricks.sdk import WorkspaceClient
       from databricks.labs.lakebridge.config import (
           ReconcileConfig, DatabaseConfig, ReconcileMetadataConfig, TableRecon
