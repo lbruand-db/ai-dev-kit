@@ -10,7 +10,7 @@ Skill and test suite for **Lakebridge Reconcile** — validating data migrations
 
 ## What Is Lakebridge Reconcile?
 
-Lakebridge Reconcile compares source and target tables after a migration, checking:
+[Lakebridge Reconcile](https://databrickslabs.github.io/lakebridge/docs/reconcile/) compares source and target tables after a migration, checking:
 
 - **Schema** — column names, data types, structural differences
 - **Row counts** — missing rows in source or target
