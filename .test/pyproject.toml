@@ -20,9 +20,10 @@ databricks = ["databricks-sdk>=0.20.0"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
 optimize = ["gepa>=0.1.0", "tiktoken>=0.7.0"]
 agent = ["claude-agent-sdk>=0.1.39"]
+tier1 = ["duckdb>=1.0", "sqlglot>=28.0", "openai", "pyyaml>=6.0"]
 # judges group: install separately when mlflow-deepeval/mlflow-ragas are published
 # judges = ["mlflow-deepeval>=0.1.0", "mlflow-ragas>=0.1.0"]
-all = ["skill-test[databricks,dev,optimize,agent]"]
+all = ["skill-test[databricks,dev,optimize,agent,tier1]"]
 
 [project.scripts]
 skill-test = "skill_test.cli:main"
@@ -34,3 +35,6 @@ packages = ["src/skill_test"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+markers = [
+    "tier1: Skill logic tests (mock tools, requires Databricks Claude Sonnet)",
+]

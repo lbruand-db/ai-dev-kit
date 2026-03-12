@@ -18,7 +18,7 @@ import re
 import duckdb
 import sqlglot
 
-from test.tier1.lakebridge_reconcile.fixtures.databricks_responses import (
+from tests.tier1.lakebridge_reconcile.fixtures.databricks_responses import (
     FIXTURES,
 )
 

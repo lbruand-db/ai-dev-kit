@@ -10,8 +10,8 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from test.tier1.lakebridge_reconcile.duckdb_backend import execute_sql
-from test.tier1.lakebridge_reconcile.fixtures.databricks_responses import (
+from tests.tier1.lakebridge_reconcile.duckdb_backend import execute_sql
+from tests.tier1.lakebridge_reconcile.fixtures.databricks_responses import (
     FIXTURES,
     SECRET_SCOPES,
 )

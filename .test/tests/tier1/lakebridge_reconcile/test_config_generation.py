@@ -6,7 +6,7 @@ recon_config.yml when given various migration scenarios.
 
 import pytest
 
-from test.tier1.lakebridge_reconcile.config_validator import (
+from tests.tier1.lakebridge_reconcile.config_validator import (
     extract_yaml_blocks,
     validate_reconcile_yml,
     validate_recon_config_yml,

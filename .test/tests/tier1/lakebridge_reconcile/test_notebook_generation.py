@@ -6,7 +6,7 @@ with proper imports, class usage, and configuration patterns.
 
 import pytest
 
-from test.tier1.lakebridge_reconcile.config_validator import (
+from tests.tier1.lakebridge_reconcile.config_validator import (
     extract_python_blocks,
     validate_notebook_code,
 )

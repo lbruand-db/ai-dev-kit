@@ -14,9 +14,9 @@ except ImportError:
 
 from openai import OpenAI
 
-from test.tier1.lakebridge_reconcile.agent_runner import run_skill_agent
-from test.tier1.lakebridge_reconcile.duckdb_backend import create_test_database
-from test.tier1.lakebridge_reconcile.mock_tools import TOOL_DEFINITIONS, create_tool_handlers
+from tests.tier1.lakebridge_reconcile.agent_runner import run_skill_agent
+from tests.tier1.lakebridge_reconcile.duckdb_backend import create_test_database
+from tests.tier1.lakebridge_reconcile.mock_tools import TOOL_DEFINITIONS, create_tool_handlers
 
 
 def _get_databricks_host() -> str:
@@ -60,7 +60,7 @@ def duckdb_conn():
 def skill_prompt():
     """Load the Lakebridge Reconcile skill files as a combined system prompt."""
     skill_dir = (
-        Path(__file__).parents[3]
+        Path(__file__).parents[4]
         / "databricks-skills"
         / "databricks-lakebridge-reconcile"
     )
