@@ -510,7 +510,7 @@ async def run_agent(
     # Pass Databricks auth env vars to MCP server processes
     if mcp_config:
         mcp_env = {k: v for k, v in env.items() if k.startswith(("DATABRICKS_",))}
-        for server_name, server_cfg in mcp_config.items():
+        for _server_name, server_cfg in mcp_config.items():
             if "env" not in server_cfg and mcp_env:
                 server_cfg["env"] = mcp_env
 
